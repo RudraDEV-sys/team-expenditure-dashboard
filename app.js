@@ -66,7 +66,7 @@ async function refreshAccessToken() {
 // Redirect to authorization page
 function redirectToAuth() {
     const params = new URLSearchParams({
-        scope: 'ZohoCliq.StorageData.READ',
+        scope: 'ZohoCliq.Channels.READ,ZohoCliq.Channels.CREATE,ZohoCliq.Channels.UPDATE,ZohoCliq.Channels.DELETE',
         client_id: CONFIG.CLIENT_ID,
         response_type: 'code',
         access_type: 'offline',
