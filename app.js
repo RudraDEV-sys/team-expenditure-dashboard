@@ -67,10 +67,7 @@ async function refreshAccessToken() {
 // Redirect to authorization page
 function redirectToAuth() {
     const scopes = [
-        'ZohoCliq.Databases.READ',
-        'ZohoCliq.Databases.CREATE',
-        'ZohoCliq.Databases.UPDATE',
-        'ZohoCliq.Databases.DELETE'
+        'ZohoCliq.StorageData.READ'
     ].join(',');
     
     const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${encodeURIComponent(scopes)}&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
