@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Callback</title>
+</head>
+<body>
+    <h2>Processing authentication...</h2>
+    <div id="status"></div>
+
+    <script>
+        // Extract authorization code from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+
+        const statusDiv = document.getElementById('status');
+
+        if (error) {
+            statusDiv.innerHTML = `<p style="color: red;">Error: ${error}</p>`;
+        } else if (code) {
+            statusDiv.innerHTML = `<p>Authorization Code: <code>${code}</code></p>
+                                   <p>Copy this code and exchange it for an access token.</p>`;
+            
+            // Optional: Automatically exchange code for token
+            exchangeCodeForToken(code);
+        } else {
+            statusDiv.innerHTML = '<p style="color: red;">No authorization code received.</p>';
+        }
+
+        async function exchangeCodeForToken(authCode) {
+            const CLIENT_ID = 'YOUR_CLIENT_ID';
+            const CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
+            const REDIRECT_URI = 'http://localhost:8000/callback';
+
+            try {
+                const response = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        client_id: CLIENT_ID,
+                        client_secret: CLIENT_SECRET,
+                        redirect_uri: REDIRECT_URI,
+                        code: authCode
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.access_token) {
+                    statusDiv.innerHTML += `
+                        <h3>Success! ✅</h3>
+                        <p><strong>Access Token:</strong></p>
+                        <textarea style="width:100%; height:100px;">${data.access_token}</textarea>
+                        <p><strong>Refresh Token:</strong></p>
+                        <textarea style="width:100%; height:100px;">${data.refresh_token}</textarea>
+                        <p>Copy these tokens to your app.js CONFIG section.</p>
+                    `;
+                    
+                    // Store tokens in localStorage
+                    localStorage.setItem('zoho_access_token', data.access_token);
+                    localStorage.setItem('zoho_refresh_token', data.refresh_token);
+                    
+                    // Redirect to dashboard after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 3000);
+                } else {
+                    statusDiv.innerHTML += `<p style="color: red;">Error: ${JSON.stringify(data)}</p>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
