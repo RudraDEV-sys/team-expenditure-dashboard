@@ -66,16 +66,15 @@ async function refreshAccessToken() {
 // Redirect to authorization page
 function redirectToAuth() {
     const params = new URLSearchParams({
-        scope: 'ZohoCliq.Channels.READ,ZohoCliq.Channels.CREATE,ZohoCliq.Channels.UPDATE,ZohoCliq.Channels.DELETE',
+        scope: 'ZohoCliq.StorageData.ALL',
         client_id: CONFIG.CLIENT_ID,
-        response_type: 'code',
-        access_type: 'offline',
-        redirect_uri: CONFIG.REDIRECT_URI,
-        prompt: 'consent'
+        response_type: 'token',  // ← CHANGED from 'code' to 'token'
+        redirect_uri: CONFIG.REDIRECT_URI
     });
     
     window.location.href = `https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`;
 }
+
 
 // Check if user is authenticated
 function checkAuth() {
