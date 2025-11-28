@@ -3,7 +3,7 @@ const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
     CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',  // Replace with your Client ID
     CLIENT_SECRET: '82bed1e7a089468a700513b367d51e304479b0c595',  // Replace with your Client Secret
-    REDIRECT_URI: 'https://YOUR-USERNAME.github.io/finsync-dashboard/callback.html',
+    REDIRECT_URI: 'https://rudradev-sys/team-expenditure-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
 };
@@ -65,7 +65,7 @@ async function refreshAccessToken() {
 
 // Redirect to authorization page
 function redirectToAuth() {
-    const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCliq.Databases.READ,ZohoCliq.Databases.CREATE,ZohoCliq.Databases.UPDATE,ZohoCliq.Databases.DELETE&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+    const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCliq.StorageData.ALL&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
     window.location.href = authUrl;
 }
 
