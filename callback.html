@@ -124,7 +124,7 @@
             const authUrl = `https://accounts.zoho.com/oauth/v2/auth?` +
                 `scope=ZohoCliq.StorageData.ALL&` +
                 `client_id=${CONFIG.CLIENT_ID}&` +
-                `response_type=token&` +  // ← Changed from 'code' to 'token'
+                `response_type=token&` +
                 `redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
             
             window.location.href = authUrl;
