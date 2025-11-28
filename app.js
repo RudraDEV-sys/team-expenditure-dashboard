@@ -1,66 +1,23 @@
 // Configuration
 const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
-    CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',  // Replace with your actual Client ID
-    CLIENT_SECRET: '82bed1e7a089468a700513b367d51e304479b0c595',  // Replace with your actual Client Secret
+    CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',
     REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
 };
+// Note: CLIENT_SECRET not needed for implicit flow
 
 // Get tokens from localStorage (set by callback.html)
 function getAccessToken() {
     return localStorage.getItem('zoho_access_token');
 }
 
-function getRefreshToken() {
-    return localStorage.getItem('zoho_refresh_token');
-}
-
 function isTokenExpired() {
     const expiry = localStorage.getItem('zoho_token_expiry');
-    return !expiry || Date.now() >= parseInt(expiry);
-}
-
-// Refresh access token when expired
-async function refreshAccessToken() {
-    const refreshToken = getRefreshToken();
-    
-    if (!refreshToken) {
-        redirectToAuth();
-        return null;
-    }
-
-    try {
-        const response = await fetch('https://accounts.zoho.com/oauth/v2/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                grant_type: 'refresh_token',
-                client_id: CONFIG.CLIENT_ID,
-                client_secret: CONFIG.CLIENT_SECRET,
-                refresh_token: refreshToken
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.access_token) {
-            localStorage.setItem('zoho_access_token', data.access_token);
-            localStorage.setItem('zoho_token_expiry', Date.now() + (data.expires_in * 1000));
-            return data.access_token;
-        } else {
-            console.error('Token refresh failed:', data);
-            redirectToAuth();
-            return null;
-        }
-    } catch (error) {
-        console.error('Error refreshing token:', error);
-        redirectToAuth();
-        return null;
-    }
+    if (!expiry) return true;
+    // Check if token expires in next 5 minutes
+    return Date.now() >= (parseInt(expiry) - 300000);
 }
 
 // Redirect to authorization page
@@ -68,19 +25,18 @@ function redirectToAuth() {
     const params = new URLSearchParams({
         scope: 'ZohoCliq.StorageData.ALL',
         client_id: CONFIG.CLIENT_ID,
-        response_type: 'token',  // ← CHANGED from 'code' to 'token'
+        response_type: 'token',  // Implicit flow
         redirect_uri: CONFIG.REDIRECT_URI
     });
     
     window.location.href = `https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`;
 }
 
-
 // Check if user is authenticated
 function checkAuth() {
     const token = getAccessToken();
-    if (!token) {
-        // Show authorization button
+    
+    if (!token || isTokenExpired()) {
         showAuthPrompt();
         return false;
     }
@@ -107,7 +63,7 @@ function showAuthPrompt() {
             ">
                 <h1 style="color: #667eea; margin-bottom: 20px;">💳 FinSync Dashboard</h1>
                 <p style="color: #666; margin-bottom: 30px;">
-                    You need to authorize this application to access your Zoho Cliq data.
+                    ${getAccessToken() ? 'Your session has expired. Please authorize again.' : 'You need to authorize this application to access your Zoho Cliq data.'}
                 </p>
                 <button onclick="redirectToAuth()" style="
                     background: #667eea;
@@ -119,22 +75,21 @@ function showAuthPrompt() {
                     font-size: 16px;
                     font-weight: 600;
                 ">
-                    🔐 Authorize Access
+                    🔐 ${getAccessToken() ? 'Re-authorize' : 'Authorize Access'}
                 </button>
             </div>
         </div>
     `;
 }
 
-// API Helper Functions with automatic token refresh - CORRECTED ENDPOINT
+// API Helper Functions
 async function apiRequest(endpoint) {
-    // Check if token is expired
-    if (isTokenExpired()) {
-        const newToken = await refreshAccessToken();
-        if (!newToken) return null;
-    }
-
     const token = getAccessToken();
+    
+    if (!token) {
+        redirectToAuth();
+        return null;
+    }
     
     try {
         let response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
@@ -144,17 +99,13 @@ async function apiRequest(endpoint) {
             }
         });
         
-        // If unauthorized, try refreshing token once
+        // If unauthorized, token is invalid/expired
         if (response.status === 401) {
-            const newToken = await refreshAccessToken();
-            if (!newToken) return null;
-            
-            response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
-                headers: {
-                    'Authorization': `Zoho-oauthtoken ${newToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            console.log('Token expired or invalid, need to re-authorize');
+            localStorage.removeItem('zoho_access_token');
+            localStorage.removeItem('zoho_token_expiry');
+            redirectToAuth();
+            return null;
         }
         
         const data = await response.json();
@@ -166,7 +117,7 @@ async function apiRequest(endpoint) {
     }
 }
 
-// CORRECTED: Use /storages/ instead of /databases/
+// Use /storages/ endpoint
 async function getCards() {
     return await apiRequest(`/storages/${CONFIG.CARDS_DB}/records`);
 }
@@ -244,12 +195,13 @@ function processData(cards, transactions) {
         });
     });
 
-    // Sort recent transactions by date
+    // Sort recent transactions by date and keep top 10
     stats.recentTransactions.sort((a, b) => {
         const dateA = a.datetime ? new Date(a.datetime) : new Date(0);
         const dateB = b.datetime ? new Date(b.datetime) : new Date(0);
         return dateB - dateA;
-    }).splice(10); // Keep only first 10
+    });
+    stats.recentTransactions = stats.recentTransactions.slice(0, 10);
 
     stats.avgTransaction = stats.totalTransactions > 0 
         ? stats.totalSpent / stats.totalTransactions 
@@ -458,7 +410,7 @@ async function initDashboard() {
             throw new Error('Failed to fetch data from Zoho Cliq API');
         }
 
-        // CORRECTED: Response structure uses 'list' not 'data'
+        // Response structure uses 'list' not 'data'
         const cards = cardsResponse.list || [];
         const transactions = transactionsResponse.list || [];
 
