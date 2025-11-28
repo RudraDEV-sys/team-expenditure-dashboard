@@ -3,7 +3,7 @@ const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
     CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',  // Replace with your Client ID
     CLIENT_SECRET: '82bed1e7a089468a700513b367d51e304479b0c595',  // Replace with your Client Secret
-    REDIRECT_URI: 'https://rudradev-sys/team-expenditure-dashboard/callback.html',
+    REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
 };
