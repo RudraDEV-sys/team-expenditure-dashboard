@@ -1,81 +1,24 @@
-// Configuration
 const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
-    CLIENT_ID: '1000.54ICUD9TBU1PMJVUPB6586AT2UJ9NG',
-    CLIENT_SECRET: '11f45997370a8f1d4fd15da02e0480725f6a03dd93',
+    CLIENT_ID: '1000.KLSYSO86QMSA3S8LLTS5RRKDPCOT3Q',  // ← UPDATE THIS
     REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
 };
 
-// Get tokens from localStorage
-function getAccessToken() {
-    return localStorage.getItem('zoho_access_token');
-}
-
-function getRefreshToken() {
-    return localStorage.getItem('zoho_refresh_token');
-}
-
-function isTokenExpired() {
-    const expiry = localStorage.getItem('zoho_token_expiry');
-    return !expiry || Date.now() >= parseInt(expiry);
-}
-
-// Refresh access token when expired
-async function refreshAccessToken() {
-    const refreshToken = getRefreshToken();
-    
-    if (!refreshToken) {
-        redirectToAuth();
-        return null;
-    }
-
-    try {
-        const response = await fetch('https://accounts.zoho.com/oauth/v2/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                grant_type: 'refresh_token',
-                client_id: CONFIG.CLIENT_ID,
-                client_secret: CONFIG.CLIENT_SECRET,
-                refresh_token: refreshToken
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.access_token) {
-            localStorage.setItem('zoho_access_token', data.access_token);
-            localStorage.setItem('zoho_token_expiry', Date.now() + (data.expires_in * 1000));
-            return data.access_token;
-        } else {
-            console.error('Token refresh failed:', data);
-            redirectToAuth();
-            return null;
-        }
-    } catch (error) {
-        console.error('Error refreshing token:', error);
-        redirectToAuth();
-        return null;
-    }
-}
-
-// Redirect to authorization page
 function redirectToAuth() {
     const params = new URLSearchParams({
         scope: 'ZohoCliq.StorageData.ALL',
         client_id: CONFIG.CLIENT_ID,
-        response_type: 'code',  // Authorization code flow
-        access_type: 'offline',
-        redirect_uri: CONFIG.REDIRECT_URI,
-        prompt: 'consent'
+        response_type: 'token',  // ← Implicit flow
+        redirect_uri: CONFIG.REDIRECT_URI
     });
     
     window.location.href = `https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`;
 }
+
+// Rest of code stays the same...
+
 
 // Rest of the code remains the same...
 // (All the other functions from the previous version)
