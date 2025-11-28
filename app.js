@@ -65,8 +65,8 @@ async function refreshAccessToken() {
 
 // Redirect to authorization page
 function redirectToAuth() {
-    const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCliq.StorageData.ALL&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
-    window.location.href = authUrl;
+    const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCliq.Databases.READ,ZohoCliq.Databases.CREATE,ZohoCliq.Databases.UPDATE,ZohoCliq.Databases.DELETE&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+            window.location.href = authUrl;
 }
 
 // Check if user is authenticated
