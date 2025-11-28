@@ -33,7 +33,7 @@ async function refreshAccessToken() {
 
     try {
         const response = await fetch('https://accounts.zoho.com/oauth/v2/token', {
-            method: 'POST',
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
