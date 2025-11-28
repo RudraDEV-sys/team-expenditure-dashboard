@@ -1,12 +1,11 @@
 // Configuration
 const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
-    CLIENT_ID: '1000.54ICUD9TBU1PMJVUPB6586AT2UJ9NG',
+    CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',
     REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
 };
-// Note: CLIENT_SECRET not needed for implicit flow
 
 // Get tokens from localStorage (set by callback.html)
 function getAccessToken() {
@@ -25,7 +24,7 @@ function redirectToAuth() {
     const params = new URLSearchParams({
         scope: 'ZohoCliq.StorageData.ALL',
         client_id: CONFIG.CLIENT_ID,
-        response_type: 'token',  // Implicit flow
+        response_type: 'token',
         redirect_uri: CONFIG.REDIRECT_URI
     });
     
