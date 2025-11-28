@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Zoho Storage API</title>
+</head>
+<body>
+    <h1>Test Zoho Cliq Storage API</h1>
+    <button onclick="testAPI()">Test API</button>
+    <pre id="output"></pre>
+
+    <script>
+        async function testAPI() {
+            const ACCESS_TOKEN = '1000.efa76f092df2027a1226af494b3be8de.c07ab2fb58e1a0e765f8f3f1b37a5016';
+            const output = document.getElementById('output');
+            
+            try {
+                // Test cards API
+                const cardsResponse = await fetch('https://cliq.zoho.com/api/v2/storages/cardsdb/records', {
+                    headers: {
+                        'Authorization': `Zoho-oauthtoken ${ACCESS_TOKEN}`
+                    }
+                });
+                const cardsData = await cardsResponse.json();
+                
+                // Test transactions API
+                const txnResponse = await fetch('https://cliq.zoho.com/api/v2/storages/transactionsdb/records', {
+                    headers: {
+                        'Authorization': `Zoho-oauthtoken ${ACCESS_TOKEN}`
+                    }
+                });
+                const txnData = await txnResponse.json();
+                
+                output.textContent = JSON.stringify({
+                    cards: cardsData,
+                    transactions: txnData
+                }, null, 2);
+                
+            } catch (error) {
+                output.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
