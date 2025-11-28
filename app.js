@@ -1,7 +1,7 @@
 // Configuration
 const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
-    CLIENT_ID: '1000.KLSYSO86QMSA3S8LLTS5RRKDPCOT3Q',
+    CLIENT_ID: '1000.4ff513f5cabff871116336d857045e47.b84d8eaa657baa9572bc94fe4b96d9ba',
     REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
