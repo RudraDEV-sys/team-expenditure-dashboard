@@ -1,642 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Team Expenditure Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #0b1020;
-      color: #f5f7ff;
-    }
-    .app-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-    .title {
-      font-size: 20px;
-      font-weight: 600;
-    }
-    .badge {
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid #3b82f6;
-      color: #93c5fd;
-    }
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid #1f2937;
-      margin-bottom: 12px;
-      overflow-x: auto;
-    }
-    .tab {
-      padding: 8px 12px;
-      font-size: 13px;
-      cursor: pointer;
-      white-space: nowrap;
-      color: #9ca3af;
-      border-bottom: 2px solid transparent;
-    }
-    .tab.active {
-      color: #f9fafb;
-      border-color: #3b82f6;
-      font-weight: 500;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: 12px;
-    }
-    .card {
-      background: radial-gradient(circle at top left, #111827, #020617);
-      border-radius: 12px;
-      padding: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
-    }
-    .card h2 {
-      margin: 0 0 8px 0;
-      font-size: 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: #e5e7eb;
-    }
-    .card h2 span {
-      font-size: 11px;
-      font-weight: 400;
-      color: #9ca3af;
-    }
-    .metric-primary {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 4px;
-      color: #f9fafb;
-    }
-    .metric-secondary {
-      font-size: 11px;
-      color: #9ca3af;
-    }
-    .pill {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      background-color: rgba(55, 65, 81, 0.6);
-      color: #e5e7eb;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-    }
-    th, td {
-      padding: 6px 4px;
-      text-align: left;
-      border-bottom: 1px solid rgba(31, 41, 55, 0.8);
-    }
-    th {
-      font-weight: 500;
-      color: #9ca3af;
-      font-size: 11px;
-    }
-    tr:last-child td {
-      border-bottom: none;
-    }
-    .status-pill {
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 10px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .status-pill.active {
-      background-color: rgba(22, 163, 74, 0.2);
-      color: #bbf7d0;
-    }
-    .status-pill.inactive {
-      background-color: rgba(239, 68, 68, 0.2);
-      color: #fecaca;
-    }
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background-color: currentColor;
-    }
-    .progress-bar {
-      width: 100%;
-      height: 6px;
-      border-radius: 999px;
-      background-color: rgba(31, 41, 55, 0.9);
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(to right, #22c55e, #84cc16);
-      width: 0%;
-      transition: width 0.8s ease-out;
-    }
-    .list {
-      max-height: 260px;
-      overflow-y: auto;
-    }
-    .list-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(31, 41, 55, 0.8);
-      font-size: 11px;
-    }
-    .list-item:last-child {
-      border-bottom: none;
-    }
-    .list-left {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .list-title {
-      font-weight: 500;
-      color: #e5e7eb;
-    }
-    .list-subtitle {
-      color: #9ca3af;
-      font-size: 10px;
-    }
-    .list-right {
-      text-align: right;
-      font-size: 11px;
-      color: #e5e7eb;
-    }
-    .money {
-      font-variant-numeric: tabular-nums;
-    }
-    .chip {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 10px;
-      background-color: rgba(37, 99, 235, 0.15);
-      color: #bfdbfe;
-      margin-left: 4px;
-    }
-    .chip.red {
-      background-color: rgba(248, 113, 113, 0.2);
-      color: #fecaca;
-    }
-    .chip.green {
-      background-color: rgba(34, 197, 94, 0.2);
-      color: #bbf7d0;
-    }
-    .footer-note {
-      font-size: 10px;
-      color: #6b7280;
-      margin-top: 8px;
-    }
-    @media (max-width: 900px) {
-      .grid {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-      }
-    }
-    @media (max-width: 640px) {
-      .grid {
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinSync Analytics Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-container">
-    <div class="header">
-      <div>
-        <div class="title">Team Expenditure Dashboard</div>
-        <div style="font-size:11px;color:#9ca3af;">Live card spend overview for your team</div>
-      </div>
-      <div id="badge" class="badge">Demo Data</div>
-    </div>
-
-    <div class="tabs">
-      <div class="tab active" data-tab="overview">💳 Overview</div>
-      <div class="tab" data-tab="cards">🧾 Cards</div>
-      <div class="tab" data-tab="transactions">📑 Transactions</div>
-      <div class="tab" data-tab="users">👤 Users</div>
-    </div>
-
-    <div id="tab-overview" class="tab-content">
-      <div class="grid">
-        <div class="card" style="grid-column: span 4;">
-          <h2>Total Spent <span id="total-period-label">This Month</span></h2>
-          <div class="metric-primary" id="total-spent">₹0</div>
-          <div class="metric-secondary" id="total-spent-meta">Loading...</div>
-          <div class="footer-note">Sum of all card transactions for the selected period</div>
-        </div>
-
-        <div class="card" style="grid-column: span 4;">
-          <h2>Top User <span>By spend</span></h2>
-          <div class="metric-primary" id="top-user-name">-</div>
-          <div class="metric-secondary" id="top-user-meta">Loading...</div>
-          <div class="footer-note">User with the highest spending across all cards</div>
-        </div>
-
-        <div class="card" style="grid-column: span 4;">
-          <h2>Active Cards <span>Usage</span></h2>
-          <div class="metric-primary" id="active-cards-count">0 / 0</div>
-          <div class="metric-secondary" id="active-cards-meta">Loading...</div>
-          <div class="progress-bar">
-            <div id="active-cards-progress" class="progress-fill"></div>
-          </div>
-          <div class="footer-note">Percentage of cards that are currently active</div>
-        </div>
-
-        <div class="card" style="grid-column: span 7;">
-          <h2>Recent Transactions <span>Last 5</span></h2>
-          <div class="list" id="recent-transactions-list"></div>
-        </div>
-
-        <div class="card" style="grid-column: span 5;">
-          <h2>Spend by User <span>Top 5</span></h2>
-          <div class="list" id="user-spend-list"></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-cards" class="tab-content" style="display:none;">
-      <div class="card">
-        <h2>All Cards <span>Availability & Owners</span></h2>
-        <table id="cards-table">
-          <thead>
-            <tr>
-              <th>Card Number</th>
-              <th>User</th>
-              <th>Bank</th>
-              <th>Card ID</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="footer-note">Status reflects whether the card is currently active or blocked</div>
-      </div>
-    </div>
-
-    <div id="tab-transactions" class="tab-content" style="display:none;">
-      <div class="card">
-        <h2>All Transactions <span>Detailed list</span></h2>
-        <table id="transactions-table">
-          <thead>
-            <tr>
-              <th>Date & Time</th>
-              <th>User</th>
-              <th>Card</th>
-              <th>Merchant</th>
-              <th>Amount</th>
-              <th>Remarks</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="footer-note">Amounts are shown in the currency recorded in your database</div>
-      </div>
-    </div>
-
-    <div id="tab-users" class="tab-content" style="display:none;">
-      <div class="card">
-        <h2>Users & Cards <span>Allocation vs usage</span></h2>
-        <table id="users-table">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Cards</th>
-              <th>Total Spent</th>
-              <th>Average Transaction</th>
-              <th>Last Transaction</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="footer-note">Aggregated view of user-level spend and activity</div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Demo fallback data
-    const demoCards = [
-      { cardnum: "XXXX-1111", status: true, userid: "U-1001", bank: "Demo Bank 1", name: "Alice", cardid: "CC-111" },
-      { cardnum: "XXXX-2222", status: true, userid: "U-1002", bank: "Demo Bank 2", name: "Bob", cardid: "CC-222" },
-      { cardnum: "XXXX-3333", status: false, userid: "U-1003", bank: "Demo Bank 3", name: "Charlie", cardid: "CC-333" }
-    ];
-
-    const demoTransactions = [
-      { cardnum: "XXXX-1111", status: true, amount: 1500, merchant: "Amazon", datetime: "2025-11-26 10:15", txnid: "TXN-001", remarks: "Office supplies", userid: "U-1001", name: "Alice" },
-      { cardnum: "XXXX-2222", status: true, amount: 3200, merchant: "Flipkart", datetime: "2025-11-26 12:40", txnid: "TXN-002", remarks: "Equipment", userid: "U-1002", name: "Bob" },
-      { cardnum: "XXXX-1111", status: true, amount: 800, merchant: "Swiggy", datetime: "2025-11-27 09:20", txnid: "TXN-003", remarks: "Team breakfast", userid: "U-1001", name: "Alice" },
-      { cardnum: "XXXX-3333", status: false, amount: 500, merchant: "Uber", datetime: "2025-11-27 14:05", txnid: "TXN-004", remarks: "Travel", userid: "U-1003", name: "Charlie" },
-      { cardnum: "XXXX-2222", status: true, amount: 2300, merchant: "Zomato", datetime: "2025-11-28 11:10", txnid: "TXN-005", remarks: "Client lunch", userid: "U-1002", name: "Bob" }
-    ];
-
-    // Utility
-    function formatCurrency(amount) {
-      if (amount == null || isNaN(amount)) return "₹0";
-      return "₹" + Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-    }
-
-    function parseBool(val) {
-      if (typeof val === "boolean") return val;
-      if (val === "true" || val === "TRUE" || val === "1" || val === 1) return true;
-      return false;
-    }
-
-    // Tabs
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        tab.classList.add("active");
-
-        const id = tab.getAttribute("data-tab");
-        document.querySelectorAll(".tab-content").forEach(c => (c.style.display = "none"));
-        document.getElementById("tab-" + id).style.display = "block";
-      });
-    });
-
-    // Build dashboard
-    function buildOverview(cards, txns) {
-      const total = txns.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-      document.getElementById("total-spent").textContent = formatCurrency(total);
-
-      const successCount = txns.filter(t => parseBool(t.status)).length;
-      const failedCount = txns.length - successCount;
-      document.getElementById("total-spent-meta").textContent =
-        txns.length === 0
-          ? "No transactions recorded"
-          : `${txns.length} transactions • ${successCount} successful, ${failedCount} failed`;
-
-      const byUser = {};
-      txns.forEach(t => {
-        const uid = t.userid || "Unknown";
-        const name = t.name || uid;
-        if (!byUser[uid]) byUser[uid] = { name, total: 0, count: 0, last: t.datetime || "" };
-        byUser[uid].total += Number(t.amount) || 0;
-        byUser[uid].count += 1;
-        if (t.datetime && (!byUser[uid].last || t.datetime > byUser[uid].last)) {
-          byUser[uid].last = t.datetime;
-        }
-      });
-
-      let topUser = null;
-      Object.values(byUser).forEach(u => {
-        if (!topUser || u.total > topUser.total) topUser = u;
-      });
-
-      if (topUser) {
-        document.getElementById("top-user-name").textContent = topUser.name;
-        document.getElementById("top-user-meta").textContent =
-          `${formatCurrency(topUser.total)} • ${topUser.count} txns • last ${topUser.last || "N/A"}`;
-      } else {
-        document.getElementById("top-user-name").textContent = "-";
-        document.getElementById("top-user-meta").textContent = "No user spend data yet";
-      }
-
-      const activeCount = cards.filter(c => parseBool(c.status)).length;
-      const totalCards = cards.length;
-      document.getElementById("active-cards-count").textContent = `${activeCount} / ${totalCards}`;
-      const pct = totalCards === 0 ? 0 : Math.round((activeCount / totalCards) * 100);
-      document.getElementById("active-cards-meta").textContent = `${pct}% cards active`;
-      document.getElementById("active-cards-progress").style.width = pct + "%";
-
-      const recent = [...txns].sort((a, b) => (b.datetime || "").localeCompare(a.datetime || "")).slice(0, 5);
-      const recentList = document.getElementById("recent-transactions-list");
-      recentList.innerHTML = "";
-      if (recent.length === 0) {
-        recentList.innerHTML = '<div class="list-item"><div>No transactions yet</div></div>';
-      } else {
-        recent.forEach(t => {
-          const item = document.createElement("div");
-          item.className = "list-item";
-          item.innerHTML = `
-            <div class="list-left">
-              <div class="list-title">${t.merchant || "Unknown Merchant"} <span class="chip">${t.cardnum || ""}</span></div>
-              <div class="list-subtitle">${t.datetime || ""} • ${t.name || t.userid || "Unknown"}</div>
+    <div class="container-fluid">
+        <!-- Header -->
+        <nav class="navbar navbar-dark bg-primary mb-4">
+            <div class="container-fluid">
+                <span class="navbar-brand mb-0 h1">💳 FinSync Analytics</span>
+                <span class="text-white" id="lastUpdated"></span>
             </div>
-            <div class="list-right">
-              <div class="money">${formatCurrency(t.amount)}</div>
-              <div>
-                <span class="status-pill ${parseBool(t.status) ? "active" : "inactive"}">
-                  <span class="status-dot"></span>${parseBool(t.status) ? "Success" : "Failed"}
-                </span>
-              </div>
+        </nav>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Total Cards</h6>
+                        <h2 class="card-title" id="totalCards">-</h2>
+                        <small class="text-success" id="activeCards">- Active</small>
+                    </div>
+                </div>
             </div>
-          `;
-          recentList.appendChild(item);
-        });
-      }
-
-      const users = Object.values(byUser)
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 5);
-      const userList = document.getElementById("user-spend-list");
-      userList.innerHTML = "";
-      if (users.length === 0) {
-        userList.innerHTML = '<div class="list-item"><div>No user data yet</div></div>';
-      } else {
-        users.forEach(u => {
-          const item = document.createElement("div");
-          item.className = "list-item";
-          item.innerHTML = `
-            <div class="list-left">
-              <div class="list-title">${u.name}</div>
-              <div class="list-subtitle">${u.count} transactions</div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Total Transactions</h6>
+                        <h2 class="card-title" id="totalTransactions">-</h2>
+                        <small class="text-info" id="todayTransactions">- Today</small>
+                    </div>
+                </div>
             </div>
-            <div class="list-right">
-              <div class="money">${formatCurrency(u.total)}</div>
-              <div class="list-subtitle">Avg ${formatCurrency(u.total / u.count || 0)}</div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Total Spent</h6>
+                        <h2 class="card-title" id="totalSpent">₹-</h2>
+                        <small class="text-warning" id="monthlySpent">₹- This Month</small>
+                    </div>
+                </div>
             </div>
-          `;
-          userList.appendChild(item);
-        });
-      }
-    }
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Avg Transaction</h6>
+                        <h2 class="card-title" id="avgTransaction">₹-</h2>
+                        <small class="text-secondary">Per Transaction</small>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    function buildCardsTable(cards) {
-      const tbody = document.querySelector("#cards-table tbody");
-      tbody.innerHTML = "";
-      if (cards.length === 0) {
-        const row = document.createElement("tr");
-        row.innerHTML = '<td colspan="5">No cards found</td>';
-        tbody.appendChild(row);
-        return;
-      }
-      cards.forEach(c => {
-        const row = document.createElement("tr");
-        const active = parseBool(c.status);
-        row.innerHTML = `
-          <td>${c.cardnum || "-"}</td>
-          <td>${c.name || c.userid || "-"}</td>
-          <td>${c.bank || "-"}</td>
-          <td>${c.cardid || "-"}</td>
-          <td>
-            <span class="status-pill ${active ? "active" : "inactive"}">
-              <span class="status-dot"></span>${active ? "Active" : "Inactive"}
-            </span>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Spending by Merchant</h5>
+                        <canvas id="merchantChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Spending Trend (Last 7 Days)</h5>
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    function buildTransactionsTable(cards, txns) {
-      const cardMap = {};
-      cards.forEach(c => {
-        cardMap[c.cardnum] = c;
-      });
+        <!-- User Spending Table -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Cards by Bank</h5>
+                        <canvas id="bankChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Top Spenders</h5>
+                        <table class="table table-hover" id="userSpendingTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Cards</th>
+                                    <th>Transactions</th>
+                                    <th>Total Spent</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-      const tbody = document.querySelector("#transactions-table tbody");
-      tbody.innerHTML = "";
-      if (txns.length === 0) {
-        const row = document.createElement("tr");
-        row.innerHTML = '<td colspan="7">No transactions found</td>';
-        tbody.appendChild(row);
-        return;
-      }
+        <!-- Recent Transactions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Recent Transactions</h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="transactionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>User</th>
+                                        <th>Merchant</th>
+                                        <th>Card</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-      const sorted = [...txns].sort((a, b) => (b.datetime || "").localeCompare(a.datetime || ""));
-      sorted.forEach(t => {
-        const card = cardMap[t.cardnum] || {};
-        const row = document.createElement("tr");
-        const active = parseBool(t.status);
-        row.innerHTML = `
-          <td>${t.datetime || "-"}</td>
-          <td>${t.name || t.userid || "-"}</td>
-          <td>${t.cardnum || "-"}</td>
-          <td>${t.merchant || "-"}</td>
-          <td class="money">${formatCurrency(t.amount)}</td>
-          <td>${t.remarks || "-"}</td>
-          <td>
-            <span class="status-pill ${active ? "active" : "inactive"}">
-              <span class="status-dot"></span>${active ? "Success" : "Failed"}
-            </span>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    function buildUsersTable(cards, txns) {
-      const userMap = {};
-      cards.forEach(c => {
-        const uid = c.userid || "Unknown";
-        const name = c.name || uid;
-        if (!userMap[uid]) userMap[uid] = { name, cards: new Set(), total: 0, count: 0, last: "" };
-        userMap[uid].cards.add(c.cardnum || "");
-      });
-
-      txns.forEach(t => {
-        const uid = t.userid || "Unknown";
-        const name = t.name || uid;
-        if (!userMap[uid]) userMap[uid] = { name, cards: new Set(), total: 0, count: 0, last: "" };
-        userMap[uid].total += Number(t.amount) || 0;
-        userMap[uid].count += 1;
-        if (t.datetime && (!userMap[uid].last || t.datetime > userMap[uid].last)) {
-          userMap[uid].last = t.datetime;
-        }
-      });
-
-      const tbody = document.querySelector("#users-table tbody");
-      tbody.innerHTML = "";
-      const users = Object.values(userMap);
-      if (users.length === 0) {
-        const row = document.createElement("tr");
-        row.innerHTML = '<td colspan="5">No users found</td>';
-        tbody.appendChild(row);
-        return;
-      }
-
-      users.sort((a, b) => b.total - a.total);
-      users.forEach(u => {
-        const avg = u.count === 0 ? 0 : u.total / u.count;
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${u.name}</td>
-          <td>${Array.from(u.cards).filter(Boolean).length}</td>
-          <td class="money">${formatCurrency(u.total)}</td>
-          <td class="money">${formatCurrency(avg)}</td>
-          <td>${u.last || "-"}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    function initDashboard(cards, txns, isLive) {
-      buildOverview(cards, txns);
-      buildCardsTable(cards);
-      buildTransactionsTable(cards, txns);
-      buildUsersTable(cards, txns);
-
-      const badge = document.getElementById("badge");
-      if (isLive) {
-        badge.textContent = "Live Data";
-        badge.style.borderColor = "#22c55e";
-        badge.style.color = "#bbf7d0";
-      } else {
-        badge.textContent = "Demo Data";
-        badge.style.borderColor = "#3b82f6";
-        badge.style.color = "#93c5fd";
-      }
-    }
-
-    // Fetch live data from Zoho Cliq bot webhook
-    async function fetchLiveData() {
-      const url = "https://cliq.zoho.com/api/v2/bots/getdata/incoming?zapikey=1001.394da47afda5c7183c7ff0636e991bb0.f0c0591c02b5bb9686bf954a27aeb984"; // TODO: replace
-
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ping: "ok" })
-        });
-
-        if (!response.ok) {
-          console.error("Bot HTTP error:", response.status, await response.text());
-          return null;
-        }
-
-        const data = await response.json();
-        console.log("Live data from bot:", data);
-        return data;
-      } catch (err) {
-        console.error("Fetch error:", err);
-        return null;
-      }
-    }
-
-    (async function main() {
-      const live = await fetchLiveData();
-      if (live && live.success) {
-        const cards = Array.isArray(live.cards) ? live.cards : [];
-        const txns = Array.isArray(live.transactions) ? live.transactions : [];
-        initDashboard(cards, txns, true);
-      } else {
-        console.warn("Using demo data fallback");
-        initDashboard(demoCards, demoTransactions, false);
-      }
-    })();
-  </script>
+    <script src="app.js"></script>
 </body>
 </html>
