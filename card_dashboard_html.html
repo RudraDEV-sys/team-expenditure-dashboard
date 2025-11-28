@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Expenditure Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tab {
+            padding: 10px 20px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .tab:hover {
+            background: #e0e0e0;
+        }
+        .tab.active {
+            background: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #4CAF50;
+        }
+        .card-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .card-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 14px;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        .info-label {
+            color: #666;
+        }
+        .info-value {
+            font-weight: 500;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .status-active {
+            color: #4CAF50;
+        }
+        .status-inactive {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="margin-bottom: 20px;">💳 Team Expenditure Dashboard</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('cards')">💳 Cards</button>
+            <button class="tab" onclick="showTab('transactions')">💰 Transactions</button>
+            <button class="tab" onclick="showTab('summary')">📊 Summary</button>
+            <button class="tab" onclick="showTab('users')">👥 User Spending</button>
+        </div>
+
+        <div id="cards" class="tab-content active">
+            <h2>Card Details</h2>
+            <div id="cardsContent" class="loading">Loading cards...</div>
+        </div>
+
+        <div id="transactions" class="tab-content">
+            <h2>Recent Transactions</h2>
+            <div id="transactionsContent" class="loading">Loading transactions...</div>
+        </div>
+
+        <div id="summary" class="tab-content">
+            <h2>Financial Summary</h2>
+            <div id="summaryContent" class="loading">Loading summary...</div>
+        </div>
+
+        <div id="users" class="tab-content">
+            <h2>User Spending Analysis</h2>
+            <div id="usersContent" class="loading">Loading user data...</div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Fetch data from Zoho Cliq Database
+        async function fetchCliqData(dbName) {
+            try {
+                // YOU NEED TO REPLACE THIS WITH YOUR ACTUAL ZOHO CLIQ API ENDPOINT
+                const response = await fetch(`YOUR_ZOHO_CLIQ_API_ENDPOINT/${dbName}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'YOUR_AUTH_TOKEN',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return null;
+            }
+        }
+
+        // Display Cards
+        function displayCards(cards) {
+            const container = document.getElementById('cardsContent');
+            
+            if (!cards || cards.length === 0) {
+                container.innerHTML = '<p>No cards found.</p>';
+                return;
+            }
+
+            let html = `<p><strong>Total Cards:</strong> ${cards.length}</p>`;
+            
+            cards.forEach(card => {
+                const status = card.status === 'true' ? 'Active' : 'Inactive';
+                const statusClass = card.status === 'true' ? 'status-active' : 'status-inactive';
+                const maskedCard = `****-****-****-${card.cardnum.slice(-4)}`;
+                
+                html += `
+                    <div class="card">
+                        <div class="card-header">${card.bank} - ${card.name}</div>
+                        <div class="card-info">
+                            <div class="info-item">
+                                <span class="info-label">Card ID:</span>
+                                <span class="info-value">${card.cardid}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Card Number:</span>
+                                <span class="info-value">${maskedCard}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">User ID:</span>
+                                <span class="info-value">${card.userid}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Status:</span>
+                                <span class="info-value ${statusClass}">${status}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Display Transactions
+        function displayTransactions(transactions) {
+            const container = document.getElementById('transactionsContent');
+            
+            if (!transactions || transactions.length === 0) {
+                container.innerHTML = '<p>No transactions found.</p>';
+                return;
+            }
+
+            let html = `<p><strong>Total Transactions:</strong> ${transactions.length}</p>`;
+            html += `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Merchant</th>
+                            <th>Amount</th>
+                            <th>Card</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            transactions.forEach(txn => {
+                const status = txn.status === 'true' ? '✅' : '❌';
+                const maskedCard = `****${txn.cardnum.slice(-4)}`;
+                
+                html += `
+                    <tr>
+                        <td>${txn.datetime}</td>
+                        <td>${txn.merchant}</td>
+                        <td>₹${txn.amount}</td>
+                        <td>${maskedCard}</td>
+                        <td>${status}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // DEMO DATA (Remove this when you connect to real API)
+        const demoCards = [
+            {cardnum: '123456781678', status: 'true', userid: 'U-432', bank: 'City Union Bank', name: 'Tony', cardid: 'DC-3456'},
+            {cardnum: '1234567890342', status: 'true', userid: 'U-123', bank: 'TNMB', name: 'Prannav', cardid: 'CC-1234'},
+            {cardnum: '9876543210342', status: 'true', userid: 'U-908', bank: 'ICICI', name: 'Hp', cardid: 'CC-987'},
+            {cardnum: '5678901234342', status: 'true', userid: 'U-2345', bank: 'HDFC', name: 'Hari', cardid: 'CC-4567'},
+            {cardnum: '3456789012342', status: 'true', userid: 'U-1564', bank: 'SBI', name: 'Scott', cardid: 'CC-869'}
+        ];
+
+        const demoTransactions = [
+            {cardnum: '1234567890342', status: 'true', amount: '400', merchant: 'Enzo', datetime: '2025-11-27 22:10', txnid: 'T001'},
+            {cardnum: '1234567890342', status: 'true', amount: '1000', merchant: 'General Electronics', datetime: '2025-11-27 22:00', txnid: 'T002'}
+        ];
+
+        // Initialize with demo data
+        displayCards(demoCards);
+        displayTransactions(demoTransactions);
+        
+        // Summary
+        document.getElementById('summaryContent').innerHTML = `
+            <div class="card">
+                <h3>Overview</h3>
+                <div class="card-info">
+                    <div class="info-item">
+                        <span class="info-label">Total Cards:</span>
+                        <span class="info-value">5</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Transactions:</span>
+                        <span class="info-value">2</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Spent:</span>
+                        <span class="info-value">₹1,400</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // User Spending
+        document.getElementById('usersContent').innerHTML = `
+            <div class="card">
+                <h3>Prannav</h3>
+                <p>Total Spent: ₹1,400</p>
+            </div>
+        `;
+
+        // To use real data, uncomment and configure:
+        /*
+        async function loadData() {
+            const cards = await fetchCliqData('cardsdb');
+            const transactions = await fetchCliqData('transactionsdb');
+            
+            if (cards) displayCards(cards);
+            if (transactions) displayTransactions(transactions);
+        }
+        loadData();
+        */
+    </script>
+</body>
+</html>
