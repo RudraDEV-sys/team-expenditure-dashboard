@@ -1,8 +1,8 @@
 // Configuration
 const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
-    CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',  // Replace with your Client ID
-    CLIENT_SECRET: '82bed1e7a089468a700513b367d51e304479b0c595',  // Replace with your Client Secret
+    CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',  // Replace with your actual Client ID
+    CLIENT_SECRET: '82bed1e7a089468a700513b367d51e304479b0c595',  // Replace with your actual Client Secret
     REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
@@ -13,7 +13,7 @@ function getAccessToken() {
     return localStorage.getItem('zoho_access_token');
 }
 
-function getRefreshToken() {s
+function getRefreshToken() {
     return localStorage.getItem('zoho_refresh_token');
 }
 
@@ -33,7 +33,7 @@ async function refreshAccessToken() {
 
     try {
         const response = await fetch('https://accounts.zoho.com/oauth/v2/token', {
-            method: 'GET',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
@@ -64,15 +64,17 @@ async function refreshAccessToken() {
 }
 
 // Redirect to authorization page
-// Redirect to authorization page
 function redirectToAuth() {
-    const scopes = [
-        'ZohoCliq.StorageData.READ'
-    ].join(',');
+    const params = new URLSearchParams({
+        scope: 'ZohoCliq.StorageData.READ',
+        client_id: CONFIG.CLIENT_ID,
+        response_type: 'code',
+        access_type: 'offline',
+        redirect_uri: CONFIG.REDIRECT_URI,
+        prompt: 'consent'
+    });
     
-    const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${encodeURIComponent(scopes)}&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
-    
-    window.location.href = authUrl;
+    window.location.href = `https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`;
 }
 
 // Check if user is authenticated
@@ -125,7 +127,7 @@ function showAuthPrompt() {
     `;
 }
 
-// API Helper Functions with automatic token refresh
+// API Helper Functions with automatic token refresh - CORRECTED ENDPOINT
 async function apiRequest(endpoint) {
     // Check if token is expired
     if (isTokenExpired()) {
@@ -156,26 +158,29 @@ async function apiRequest(endpoint) {
             });
         }
         
-        return await response.json();
+        const data = await response.json();
+        console.log('API Response:', data);
+        return data;
     } catch (error) {
         console.error('API request failed:', error);
         return null;
     }
 }
 
+// CORRECTED: Use /storages/ instead of /databases/
 async function getCards() {
-    return await apiRequest(`/databases/${CONFIG.CARDS_DB}/records`);
+    return await apiRequest(`/storages/${CONFIG.CARDS_DB}/records`);
 }
 
 async function getTransactions() {
-    return await apiRequest(`/databases/${CONFIG.TRANSACTIONS_DB}/records`);
+    return await apiRequest(`/storages/${CONFIG.TRANSACTIONS_DB}/records`);
 }
 
 // Data Processing Functions
 function processData(cards, transactions) {
     const stats = {
         totalCards: cards.length,
-        activeCards: cards.filter(c => c.status === 'true').length,
+        activeCards: cards.filter(c => c.status === 'true' || c.status === true).length,
         totalTransactions: transactions.length,
         totalSpent: 0,
         merchantSpending: {},
@@ -188,7 +193,10 @@ function processData(cards, transactions) {
     // Build card lookup map
     const cardMap = {};
     cards.forEach(card => {
-        cardMap[card.cardnum] = card;
+        const cardnum = card.cardnum ? String(card.cardnum) : '';
+        if (cardnum) {
+            cardMap[cardnum] = card;
+        }
         
         // Bank distribution
         const bank = card.bank || 'Unknown';
@@ -197,7 +205,9 @@ function processData(cards, transactions) {
 
     // Process transactions
     transactions.forEach(txn => {
-        if (txn.status === 'true') {
+        const txnStatus = txn.status === 'true' || txn.status === true;
+        
+        if (txnStatus) {
             const amount = parseFloat(txn.amount) || 0;
             stats.totalSpent += amount;
 
@@ -210,7 +220,8 @@ function processData(cards, transactions) {
             stats.dailySpending[date] = (stats.dailySpending[date] || 0) + amount;
 
             // User spending
-            const card = cardMap[txn.cardnum];
+            const cardnum = txn.cardnum ? String(txn.cardnum) : '';
+            const card = cardMap[cardnum];
             if (card) {
                 const userName = card.name || 'Unknown';
                 if (!stats.userSpending[userName]) {
@@ -220,23 +231,26 @@ function processData(cards, transactions) {
                         totalSpent: 0
                     };
                 }
-                stats.userSpending[userName].cards.add(txn.cardnum);
+                stats.userSpending[userName].cards.add(cardnum);
                 stats.userSpending[userName].transactions++;
                 stats.userSpending[userName].totalSpent += amount;
             }
         }
 
         // Recent transactions (all, including pending)
+        const cardnum = txn.cardnum ? String(txn.cardnum) : '';
         stats.recentTransactions.push({
             ...txn,
-            card: cardMap[txn.cardnum]
+            card: cardMap[cardnum]
         });
     });
 
     // Sort recent transactions by date
-    stats.recentTransactions.sort((a, b) => 
-        new Date(b.datetime) - new Date(a.datetime)
-    ).slice(0, 10);
+    stats.recentTransactions.sort((a, b) => {
+        const dateA = a.datetime ? new Date(a.datetime) : new Date(0);
+        const dateB = b.datetime ? new Date(b.datetime) : new Date(0);
+        return dateB - dateA;
+    }).splice(10); // Keep only first 10
 
     stats.avgTransaction = stats.totalTransactions > 0 
         ? stats.totalSpent / stats.totalTransactions 
@@ -260,6 +274,11 @@ function createMerchantChart(merchantSpending) {
     const sortedMerchants = Object.entries(merchantSpending)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
+
+    if (sortedMerchants.length === 0) {
+        ctx.canvas.parentElement.innerHTML = '<p class="text-center text-muted">No merchant data available</p>';
+        return;
+    }
 
     new Chart(ctx, {
         type: 'doughnut',
@@ -288,6 +307,11 @@ function createTrendChart(dailySpending) {
     const sortedDates = Object.entries(dailySpending)
         .sort((a, b) => new Date(a[0]) - new Date(b[0]))
         .slice(-7);
+
+    if (sortedDates.length === 0) {
+        ctx.canvas.parentElement.innerHTML = '<p class="text-center text-muted">No trend data available</p>';
+        return;
+    }
 
     new Chart(ctx, {
         type: 'line',
@@ -324,6 +348,11 @@ function createTrendChart(dailySpending) {
 function createBankChart(bankDistribution) {
     const ctx = document.getElementById('bankChart').getContext('2d');
     
+    if (Object.keys(bankDistribution).length === 0) {
+        ctx.canvas.parentElement.innerHTML = '<p class="text-center text-muted">No bank data available</p>';
+        return;
+    }
+
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -357,31 +386,44 @@ function updateUserSpendingTable(userSpending) {
     const tbody = document.querySelector('#userSpendingTable tbody');
     tbody.innerHTML = '';
 
-    Object.entries(userSpending)
+    const sortedUsers = Object.entries(userSpending)
         .sort((a, b) => b[1].totalSpent - a[1].totalSpent)
-        .slice(0, 5)
-        .forEach(([user, data]) => {
-            const row = tbody.insertRow();
-            row.innerHTML = `
-                <td>${user}</td>
-                <td>${data.cards.size}</td>
-                <td>${data.transactions}</td>
-                <td>₹${data.totalSpent.toLocaleString('en-IN')}</td>
-            `;
-        });
+        .slice(0, 5);
+
+    if (sortedUsers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No user spending data available</td></tr>';
+        return;
+    }
+
+    sortedUsers.forEach(([user, data]) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${user}</td>
+            <td>${data.cards.size}</td>
+            <td>${data.transactions}</td>
+            <td>₹${data.totalSpent.toLocaleString('en-IN')}</td>
+        `;
+    });
 }
 
 function updateTransactionsTable(transactions) {
     const tbody = document.querySelector('#transactionsTable tbody');
     tbody.innerHTML = '';
 
+    if (transactions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No transactions available</td></tr>';
+        return;
+    }
+
     transactions.forEach(txn => {
         const row = tbody.insertRow();
-        const statusBadge = txn.status === 'true' 
+        const txnStatus = txn.status === 'true' || txn.status === true;
+        const statusBadge = txnStatus
             ? '<span class="badge bg-success">Paid</span>' 
             : '<span class="badge bg-warning">Pending</span>';
         
-        const cardLast4 = txn.cardnum ? `****${txn.cardnum.slice(-4)}` : 'N/A';
+        const cardnum = txn.cardnum ? String(txn.cardnum) : '';
+        const cardLast4 = cardnum ? `****${cardnum.slice(-4)}` : 'N/A';
         
         row.innerHTML = `
             <td>${txn.datetime || 'N/A'}</td>
@@ -402,18 +444,26 @@ async function initDashboard() {
     }
 
     try {
+        console.log('Fetching data from Zoho Cliq...');
+        
         // Fetch data
         const [cardsResponse, transactionsResponse] = await Promise.all([
             getCards(),
             getTransactions()
         ]);
 
+        console.log('Cards Response:', cardsResponse);
+        console.log('Transactions Response:', transactionsResponse);
+
         if (!cardsResponse || !transactionsResponse) {
-            throw new Error('Failed to fetch data');
+            throw new Error('Failed to fetch data from Zoho Cliq API');
         }
 
-        const cards = cardsResponse.data || [];
-        const transactions = transactionsResponse.data || [];
+        // CORRECTED: Response structure uses 'list' not 'data'
+        const cards = cardsResponse.list || [];
+        const transactions = transactionsResponse.list || [];
+
+        console.log('Cards:', cards.length, 'Transactions:', transactions.length);
 
         // Process data
         const stats = processData(cards, transactions);
@@ -428,7 +478,7 @@ async function initDashboard() {
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        alert('Failed to load dashboard data. Please check your configuration and try again.');
+        alert('Failed to load dashboard data. Check console for details.');
     }
 }
 
