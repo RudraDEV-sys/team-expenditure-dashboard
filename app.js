@@ -1,33 +1,79 @@
+// Configuration
 const CONFIG = {
     API_BASE: 'https://cliq.zoho.com/api/v2',
-    CLIENT_ID: '1000.KLSYSO86QMSA3S8LLTS5RRKDPCOT3Q',  // ← UPDATE THIS
-    REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html',
+    CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',  // Replace with your Client ID
+    CLIENT_SECRET: '82bed1e7a089468a700513b367d51e304479b0c595',  // Replace with your Client Secret
+    REDIRECT_URI: 'https://YOUR-USERNAME.github.io/finsync-dashboard/callback.html',
     CARDS_DB: 'cardsdb',
     TRANSACTIONS_DB: 'transactionsdb'
 };
 
-function redirectToAuth() {
-    const params = new URLSearchParams({
-        scope: 'ZohoCliq.StorageData.ALL',
-        client_id: CONFIG.CLIENT_ID,
-        response_type: 'token',  // ← Implicit flow
-        redirect_uri: CONFIG.REDIRECT_URI
-    });
-    
-    window.location.href = `https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`;
+// Get tokens from localStorage (set by callback.html)
+function getAccessToken() {
+    return localStorage.getItem('zoho_access_token');
 }
 
-// Rest of code stays the same...
+function getRefreshToken() {
+    return localStorage.getItem('zoho_refresh_token');
+}
 
+function isTokenExpired() {
+    const expiry = localStorage.getItem('zoho_token_expiry');
+    return !expiry || Date.now() >= parseInt(expiry);
+}
 
-// Rest of the code remains the same...
-// (All the other functions from the previous version)
+// Refresh access token when expired
+async function refreshAccessToken() {
+    const refreshToken = getRefreshToken();
+    
+    if (!refreshToken) {
+        redirectToAuth();
+        return null;
+    }
+
+    try {
+        const response = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                client_id: CONFIG.CLIENT_ID,
+                client_secret: CONFIG.CLIENT_SECRET,
+                refresh_token: refreshToken
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.access_token) {
+            localStorage.setItem('zoho_access_token', data.access_token);
+            localStorage.setItem('zoho_token_expiry', Date.now() + (data.expires_in * 1000));
+            return data.access_token;
+        } else {
+            console.error('Token refresh failed:', data);
+            redirectToAuth();
+            return null;
+        }
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        redirectToAuth();
+        return null;
+    }
+}
+
+// Redirect to authorization page
+function redirectToAuth() {
+    const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCliq.Databases.READ,ZohoCliq.Databases.CREATE,ZohoCliq.Databases.UPDATE,ZohoCliq.Databases.DELETE&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+    window.location.href = authUrl;
+}
 
 // Check if user is authenticated
 function checkAuth() {
     const token = getAccessToken();
-    
-    if (!token || isTokenExpired()) {
+    if (!token) {
+        // Show authorization button
         showAuthPrompt();
         return false;
     }
@@ -54,7 +100,7 @@ function showAuthPrompt() {
             ">
                 <h1 style="color: #667eea; margin-bottom: 20px;">💳 FinSync Dashboard</h1>
                 <p style="color: #666; margin-bottom: 30px;">
-                    ${getAccessToken() ? 'Your session has expired. Please authorize again.' : 'You need to authorize this application to access your Zoho Cliq data.'}
+                    You need to authorize this application to access your Zoho Cliq data.
                 </p>
                 <button onclick="redirectToAuth()" style="
                     background: #667eea;
@@ -66,21 +112,22 @@ function showAuthPrompt() {
                     font-size: 16px;
                     font-weight: 600;
                 ">
-                    🔐 ${getAccessToken() ? 'Re-authorize' : 'Authorize Access'}
+                    🔐 Authorize Access
                 </button>
             </div>
         </div>
     `;
 }
 
-// API Helper Functions
+// API Helper Functions with automatic token refresh
 async function apiRequest(endpoint) {
-    const token = getAccessToken();
-    
-    if (!token) {
-        redirectToAuth();
-        return null;
+    // Check if token is expired
+    if (isTokenExpired()) {
+        const newToken = await refreshAccessToken();
+        if (!newToken) return null;
     }
+
+    const token = getAccessToken();
     
     try {
         let response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
@@ -90,38 +137,39 @@ async function apiRequest(endpoint) {
             }
         });
         
-        // If unauthorized, token is invalid/expired
+        // If unauthorized, try refreshing token once
         if (response.status === 401) {
-            console.log('Token expired or invalid, need to re-authorize');
-            localStorage.removeItem('zoho_access_token');
-            localStorage.removeItem('zoho_token_expiry');
-            redirectToAuth();
-            return null;
+            const newToken = await refreshAccessToken();
+            if (!newToken) return null;
+            
+            response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
+                headers: {
+                    'Authorization': `Zoho-oauthtoken ${newToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
         }
         
-        const data = await response.json();
-        console.log('API Response:', data);
-        return data;
+        return await response.json();
     } catch (error) {
         console.error('API request failed:', error);
         return null;
     }
 }
 
-// Use /storages/ endpoint
 async function getCards() {
-    return await apiRequest(`/storages/${CONFIG.CARDS_DB}/records`);
+    return await apiRequest(`/databases/${CONFIG.CARDS_DB}/records`);
 }
 
 async function getTransactions() {
-    return await apiRequest(`/storages/${CONFIG.TRANSACTIONS_DB}/records`);
+    return await apiRequest(`/databases/${CONFIG.TRANSACTIONS_DB}/records`);
 }
 
 // Data Processing Functions
 function processData(cards, transactions) {
     const stats = {
         totalCards: cards.length,
-        activeCards: cards.filter(c => c.status === 'true' || c.status === true).length,
+        activeCards: cards.filter(c => c.status === 'true').length,
         totalTransactions: transactions.length,
         totalSpent: 0,
         merchantSpending: {},
@@ -134,10 +182,7 @@ function processData(cards, transactions) {
     // Build card lookup map
     const cardMap = {};
     cards.forEach(card => {
-        const cardnum = card.cardnum ? String(card.cardnum) : '';
-        if (cardnum) {
-            cardMap[cardnum] = card;
-        }
+        cardMap[card.cardnum] = card;
         
         // Bank distribution
         const bank = card.bank || 'Unknown';
@@ -146,9 +191,7 @@ function processData(cards, transactions) {
 
     // Process transactions
     transactions.forEach(txn => {
-        const txnStatus = txn.status === 'true' || txn.status === true;
-        
-        if (txnStatus) {
+        if (txn.status === 'true') {
             const amount = parseFloat(txn.amount) || 0;
             stats.totalSpent += amount;
 
@@ -161,8 +204,7 @@ function processData(cards, transactions) {
             stats.dailySpending[date] = (stats.dailySpending[date] || 0) + amount;
 
             // User spending
-            const cardnum = txn.cardnum ? String(txn.cardnum) : '';
-            const card = cardMap[cardnum];
+            const card = cardMap[txn.cardnum];
             if (card) {
                 const userName = card.name || 'Unknown';
                 if (!stats.userSpending[userName]) {
@@ -172,27 +214,23 @@ function processData(cards, transactions) {
                         totalSpent: 0
                     };
                 }
-                stats.userSpending[userName].cards.add(cardnum);
+                stats.userSpending[userName].cards.add(txn.cardnum);
                 stats.userSpending[userName].transactions++;
                 stats.userSpending[userName].totalSpent += amount;
             }
         }
 
         // Recent transactions (all, including pending)
-        const cardnum = txn.cardnum ? String(txn.cardnum) : '';
         stats.recentTransactions.push({
             ...txn,
-            card: cardMap[cardnum]
+            card: cardMap[txn.cardnum]
         });
     });
 
-    // Sort recent transactions by date and keep top 10
-    stats.recentTransactions.sort((a, b) => {
-        const dateA = a.datetime ? new Date(a.datetime) : new Date(0);
-        const dateB = b.datetime ? new Date(b.datetime) : new Date(0);
-        return dateB - dateA;
-    });
-    stats.recentTransactions = stats.recentTransactions.slice(0, 10);
+    // Sort recent transactions by date
+    stats.recentTransactions.sort((a, b) => 
+        new Date(b.datetime) - new Date(a.datetime)
+    ).slice(0, 10);
 
     stats.avgTransaction = stats.totalTransactions > 0 
         ? stats.totalSpent / stats.totalTransactions 
@@ -216,11 +254,6 @@ function createMerchantChart(merchantSpending) {
     const sortedMerchants = Object.entries(merchantSpending)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
-
-    if (sortedMerchants.length === 0) {
-        ctx.canvas.parentElement.innerHTML = '<p class="text-center text-muted">No merchant data available</p>';
-        return;
-    }
 
     new Chart(ctx, {
         type: 'doughnut',
@@ -249,11 +282,6 @@ function createTrendChart(dailySpending) {
     const sortedDates = Object.entries(dailySpending)
         .sort((a, b) => new Date(a[0]) - new Date(b[0]))
         .slice(-7);
-
-    if (sortedDates.length === 0) {
-        ctx.canvas.parentElement.innerHTML = '<p class="text-center text-muted">No trend data available</p>';
-        return;
-    }
 
     new Chart(ctx, {
         type: 'line',
@@ -290,11 +318,6 @@ function createTrendChart(dailySpending) {
 function createBankChart(bankDistribution) {
     const ctx = document.getElementById('bankChart').getContext('2d');
     
-    if (Object.keys(bankDistribution).length === 0) {
-        ctx.canvas.parentElement.innerHTML = '<p class="text-center text-muted">No bank data available</p>';
-        return;
-    }
-
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -328,44 +351,31 @@ function updateUserSpendingTable(userSpending) {
     const tbody = document.querySelector('#userSpendingTable tbody');
     tbody.innerHTML = '';
 
-    const sortedUsers = Object.entries(userSpending)
+    Object.entries(userSpending)
         .sort((a, b) => b[1].totalSpent - a[1].totalSpent)
-        .slice(0, 5);
-
-    if (sortedUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No user spending data available</td></tr>';
-        return;
-    }
-
-    sortedUsers.forEach(([user, data]) => {
-        const row = tbody.insertRow();
-        row.innerHTML = `
-            <td>${user}</td>
-            <td>${data.cards.size}</td>
-            <td>${data.transactions}</td>
-            <td>₹${data.totalSpent.toLocaleString('en-IN')}</td>
-        `;
-    });
+        .slice(0, 5)
+        .forEach(([user, data]) => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${user}</td>
+                <td>${data.cards.size}</td>
+                <td>${data.transactions}</td>
+                <td>₹${data.totalSpent.toLocaleString('en-IN')}</td>
+            `;
+        });
 }
 
 function updateTransactionsTable(transactions) {
     const tbody = document.querySelector('#transactionsTable tbody');
     tbody.innerHTML = '';
 
-    if (transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No transactions available</td></tr>';
-        return;
-    }
-
     transactions.forEach(txn => {
         const row = tbody.insertRow();
-        const txnStatus = txn.status === 'true' || txn.status === true;
-        const statusBadge = txnStatus
+        const statusBadge = txn.status === 'true' 
             ? '<span class="badge bg-success">Paid</span>' 
             : '<span class="badge bg-warning">Pending</span>';
         
-        const cardnum = txn.cardnum ? String(txn.cardnum) : '';
-        const cardLast4 = cardnum ? `****${cardnum.slice(-4)}` : 'N/A';
+        const cardLast4 = txn.cardnum ? `****${txn.cardnum.slice(-4)}` : 'N/A';
         
         row.innerHTML = `
             <td>${txn.datetime || 'N/A'}</td>
@@ -386,26 +396,18 @@ async function initDashboard() {
     }
 
     try {
-        console.log('Fetching data from Zoho Cliq...');
-        
         // Fetch data
         const [cardsResponse, transactionsResponse] = await Promise.all([
             getCards(),
             getTransactions()
         ]);
 
-        console.log('Cards Response:', cardsResponse);
-        console.log('Transactions Response:', transactionsResponse);
-
         if (!cardsResponse || !transactionsResponse) {
-            throw new Error('Failed to fetch data from Zoho Cliq API');
+            throw new Error('Failed to fetch data');
         }
 
-        // Response structure uses 'list' not 'data'
-        const cards = cardsResponse.list || [];
-        const transactions = transactionsResponse.list || [];
-
-        console.log('Cards:', cards.length, 'Transactions:', transactions.length);
+        const cards = cardsResponse.data || [];
+        const transactions = transactionsResponse.data || [];
 
         // Process data
         const stats = processData(cards, transactions);
@@ -420,7 +422,7 @@ async function initDashboard() {
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        alert('Failed to load dashboard data. Check console for details.');
+        alert('Failed to load dashboard data. Please check your configuration and try again.');
     }
 }
 
