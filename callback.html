@@ -21,17 +21,37 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             max-width: 600px;
             width: 100%;
-            text-align: center;
         }
         h2 {
             color: #667eea;
             margin-bottom: 20px;
         }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
         .success {
-            color: #28a745;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
         }
         .error {
-            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .loading {
+            text-align: center;
         }
         .spinner {
             border: 4px solid #f3f3f3;
@@ -59,77 +79,172 @@
         button:hover {
             background: #5568d3;
         }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-top: 10px;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="spinner"></div>
-        <p>Processing authentication...</p>
+        <h2>🔐 FinSync Authorization</h2>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing authentication...</p>
+        </div>
+        <div id="status"></div>
     </div>
 
     <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        const statusDiv = document.getElementById('status');
+        const loadingDiv = document.getElementById('loading');
+
+        // IMPORTANT: Replace these with your actual values
         const CONFIG = {
             CLIENT_ID: '1000.54ICUD9TBU1PMJVUPB6586AT2UJ9NG',
+            CLIENT_SECRET: '11f45997370a8f1d4fd15da02e0480725f6a03dd93',
             REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html'
         };
 
-        // For implicit flow, token comes in URL hash, not query params
-        const hash = window.location.hash.substring(1);
-        const params = new URLSearchParams(hash);
-        const access_token = params.get('access_token');
-        const expires_in = params.get('expires_in');
-        const error = params.get('error');
-
-        console.log('Hash:', hash);
-        console.log('Access Token:', access_token);
+        console.log('Callback page loaded');
+        console.log('Authorization code:', code);
         console.log('Error:', error);
 
         if (error) {
-            document.body.innerHTML = `
-                <div class="container">
-                    <h2 class="error">❌ Authorization Failed</h2>
-                    <p>Error: ${error}</p>
-                    <p>${params.get('error_description') || ''}</p>
+            loadingDiv.style.display = 'none';
+            statusDiv.innerHTML = `
+                <div class="status error">
+                    <h3>❌ Authorization Failed</h3>
+                    <p><strong>Error:</strong> ${error}</p>
+                    <p><strong>Description:</strong> ${urlParams.get('error_description') || 'Unknown error'}</p>
+                    <div class="debug-info">
+                        <strong>Debug Info:</strong><br>
+                        Full URL: ${window.location.href}
+                    </div>
                     <button onclick="authorize()">Try Again</button>
                 </div>
             `;
-        } else if (access_token) {
-            localStorage.setItem('zoho_access_token', access_token);
-            localStorage.setItem('zoho_token_expiry', Date.now() + (parseInt(expires_in) * 1000));
-            
-            console.log('Token saved successfully');
-            
-            document.body.innerHTML = `
-                <div class="container">
-                    <h2 class="success">✅ Authorization Successful!</h2>
-                    <p>Your access token has been saved.</p>
-                    <p>Redirecting to dashboard...</p>
-                </div>
-            `;
-            
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
+        } else if (code) {
+            exchangeCodeForToken(code);
         } else {
-            document.body.innerHTML = `
-                <div class="container">
-                    <h2 class="error">❌ No Authorization Data</h2>
-                    <p>No access token received from Zoho.</p>
+            loadingDiv.style.display = 'none';
+            statusDiv.innerHTML = `
+                <div class="status error">
+                    <h3>❌ No Authorization Code</h3>
+                    <p>No authorization code received from Zoho.</p>
                     <button onclick="authorize()">Start Authorization</button>
                 </div>
             `;
         }
 
-        function authorize() {
-            const authUrl = `https://accounts.zoho.com/oauth/v2/auth?` +
-                `scope=ZohoCliq.StorageData.ALL&` +
-                `client_id=${CONFIG.CLIENT_ID}&` +
-                `response_type=token&` +
-                `redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+        async function exchangeCodeForToken(authCode) {
+            console.log('Exchanging code for token...');
             
+            try {
+                const tokenEndpoint = 'https://accounts.zoho.com/oauth/v2/token';
+                const params = new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    client_id: CONFIG.CLIENT_ID,
+                    client_secret: CONFIG.CLIENT_SECRET,
+                    redirect_uri: CONFIG.REDIRECT_URI,
+                    code: authCode
+                });
+
+                console.log('Token request params:', Object.fromEntries(params));
+
+                const response = await fetch(tokenEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: params.toString()
+                });
+
+                console.log('Token response status:', response.status);
+                const data = await response.json();
+                console.log('Token response data:', data);
+                
+                loadingDiv.style.display = 'none';
+                
+                if (data.access_token) {
+                    // Store tokens
+                    localStorage.setItem('zoho_access_token', data.access_token);
+                    localStorage.setItem('zoho_refresh_token', data.refresh_token);
+                    localStorage.setItem('zoho_token_expiry', Date.now() + (data.expires_in * 1000));
+                    
+                    console.log('Tokens saved successfully');
+                    
+                    statusDiv.innerHTML = `
+                        <div class="status success">
+                            <h3>✅ Authorization Successful!</h3>
+                            <p>Your access token has been saved securely.</p>
+                            <p><strong>Access Token:</strong></p>
+                            <textarea readonly rows="3">${data.access_token}</textarea>
+                            <p><strong>Refresh Token:</strong></p>
+                            <textarea readonly rows="3">${data.refresh_token || 'Not provided'}</textarea>
+                            <p><strong>Expires in:</strong> ${data.expires_in} seconds</p>
+                            <p>Redirecting to dashboard in 3 seconds...</p>
+                        </div>
+                    `;
+                    
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 3000);
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            <h3>❌ Token Exchange Failed</h3>
+                            <p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>
+                            <p><strong>Description:</strong> ${data.error_description || 'No description'}</p>
+                            <div class="debug-info">
+                                <strong>Full Response:</strong><br>
+                                ${JSON.stringify(data, null, 2)}
+                            </div>
+                            <button onclick="authorize()">Try Again</button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Token exchange error:', error);
+                loadingDiv.style.display = 'none';
+                statusDiv.innerHTML = `
+                    <div class="status error">
+                        <h3>❌ Request Failed (CORS Error)</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>This is likely a CORS issue. The browser is blocking the token exchange request.</p>
+                        <div class="debug-info">
+                            <strong>Details:</strong><br>
+                            ${error.stack || 'No stack trace available'}
+                        </div>
+                        <button onclick="authorize()">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        function authorize() {
+            const params = new URLSearchParams({
+                scope: 'ZohoCliq.StorageData.ALL',
+                client_id: CONFIG.CLIENT_ID,
+                response_type: 'code',  // Authorization code flow
+                access_type: 'offline',
+                redirect_uri: CONFIG.REDIRECT_URI,
+                prompt: 'consent'
+            });
+            
+            const authUrl = `https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`;
+            console.log('Authorization URL:', authUrl);
             window.location.href = authUrl;
         }
 
+        // Expose authorize function globally
         window.authorize = authorize;
     </script>
 </body>
