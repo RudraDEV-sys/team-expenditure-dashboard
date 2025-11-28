@@ -330,25 +330,32 @@
         }
 
         // Get URL parameters
-        function getUrlParams() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const cardsParam = urlParams.get('cards');
-            const txnParam = urlParams.get('txn');
+        // Get URL parameters and decode Base64
+function getUrlParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const cardsParam = urlParams.get('c');  // Changed from 'cards' to 'c'
+    const txnParam = urlParams.get('t');    // Changed from 'txn' to 't'
 
-            if (cardsParam && txnParam) {
-                try {
-                    const cards = JSON.parse(decodeURIComponent(cardsParam));
-                    const transactions = JSON.parse(decodeURIComponent(txnParam));
-                    document.getElementById('dataSourceBadge').textContent = '🟢 Live Data';
-                    document.getElementById('dataSourceBadge').style.background = '#4CAF50';
-                    return { cards, transactions };
-                } catch (e) {
-                    console.error('Error parsing URL params:', e);
-                    return null;
-                }
-            }
+    if (cardsParam && txnParam) {
+        try {
+            // Decode from Base64
+            const cardsJson = atob(cardsParam);
+            const txnJson = atob(txnParam);
+            
+            const cards = JSON.parse(cardsJson);
+            const transactions = JSON.parse(txnJson);
+            
+            document.getElementById('dataSourceBadge').textContent = '🟢 Live Data';
+            document.getElementById('dataSourceBadge').style.background = '#4CAF50';
+            return { cards, transactions };
+        } catch (e) {
+            console.error('Error parsing Base64 params:', e);
             return null;
         }
+    }
+    return null;
+}
+
 
         // Display Cards
         function displayCards(cards) {
