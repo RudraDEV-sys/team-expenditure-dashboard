@@ -21,37 +21,17 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             max-width: 600px;
             width: 100%;
+            text-align: center;
         }
         h2 {
             color: #667eea;
             margin-bottom: 20px;
         }
-        .status {
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
         .success {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
+            color: #28a745;
         }
         .error {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 12px;
-            margin-top: 10px;
-        }
-        .loading {
-            text-align: center;
+            color: #dc3545;
         }
         .spinner {
             border: 4px solid #f3f3f3;
@@ -83,85 +63,45 @@
 </head>
 <body>
     <div class="container">
-        <h2>🔐 FinSync Authorization</h2>
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Processing authentication...</p>
-        </div>
-        <div id="status"></div>
+        <div class="spinner"></div>
+        <p>Processing authentication...</p>
     </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const error = urlParams.get('error');
-        const statusDiv = document.getElementById('status');
-        const loadingDiv = document.getElementById('loading');
-
-        // IMPORTANT: Replace these with your actual values
         const CONFIG = {
             CLIENT_ID: '1000.2AXRFCVRFH5FZJRI6KAKZJDXQBPYHF',
-            CLIENT_SECRET: '82bed1e7a089468a700513b367d51e304479b0c595',
             REDIRECT_URI: 'https://rudradev-sys.github.io/team-expenditure-dashboard/callback.html'
         };
 
+        // For implicit flow, token comes in URL hash, not query params
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const access_token = params.get('access_token');
+        const expires_in = params.get('expires_in');
+        const error = params.get('error');
+
+        console.log('Hash:', hash);
+        console.log('Access Token:', access_token);
+        console.log('Error:', error);
+
         if (error) {
-            loadingDiv.style.display = 'none';
-            statusDiv.innerHTML = `
-                <div class="status error">
-                    <h3>❌ Authorization Failed</h3>
+            document.body.innerHTML = `
+                <div class="container">
+                    <h2 class="error">❌ Authorization Failed</h2>
                     <p>Error: ${error}</p>
-                    <p>Description: ${urlParams.get('error_description') || 'Unknown error'}</p>
-                    <button onclick="window.location.href='index.html'">Try Again</button>
+                    <p>${params.get('error_description') || ''}</p>
+                    <button onclick="authorize()">Try Again</button>
                 </div>
             `;
-        } else if (code) {
-            exchangeCodeForToken(code);
-        } else {
-            loadingDiv.style.display = 'none';
-            statusDiv.innerHTML = `
-                <div class="status error">
-                    <h3>❌ No Authorization Code</h3>
-                    <p>No authorization code received from Zoho.</p>
-                    <button onclick="authorize()">Start Authorization</button>
-                </div>
-            `;
-        }
-
-        async function exchangeCodeForToken(authCode) {
-    console.log('Exchanging code for token...');
-    
-    try {
-        const tokenEndpoint = 'https://accounts.zoho.com/oauth/v2/token';
-        
-        // IMPORTANT: Must be POST, not GET
-        const response = await fetch(tokenEndpoint, {
-            method: 'POST',  // ← Must be POST
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({  // ← Body is allowed with POST
-                grant_type: 'authorization_code',
-                client_id: CONFIG.CLIENT_ID,
-                client_secret: CONFIG.CLIENT_SECRET,
-                redirect_uri: CONFIG.REDIRECT_URI,
-                code: authCode
-            }).toString()
-        });
-
-        const data = await response.json();
-        console.log('Token response:', data);
-        
-        loadingDiv.style.display = 'none';
-        
-        if (data.access_token) {
-            localStorage.setItem('zoho_access_token', data.access_token);
-            localStorage.setItem('zoho_refresh_token', data.refresh_token);
-            localStorage.setItem('zoho_token_expiry', Date.now() + (data.expires_in * 1000));
+        } else if (access_token) {
+            localStorage.setItem('zoho_access_token', access_token);
+            localStorage.setItem('zoho_token_expiry', Date.now() + (parseInt(expires_in) * 1000));
             
-            statusDiv.innerHTML = `
-                <div class="status success">
-                    <h3>✅ Authorization Successful!</h3>
+            console.log('Token saved successfully');
+            
+            document.body.innerHTML = `
+                <div class="container">
+                    <h2 class="success">✅ Authorization Successful!</h2>
                     <p>Your access token has been saved.</p>
                     <p>Redirecting to dashboard...</p>
                 </div>
@@ -171,38 +111,26 @@
                 window.location.href = 'index.html';
             }, 2000);
         } else {
-            statusDiv.innerHTML = `
-                <div class="status error">
-                    <h3>❌ Token Exchange Failed</h3>
-                    <p>Error: ${data.error || 'Unknown error'}</p>
-                    <p>Description: ${data.error_description || 'No description'}</p>
-                    <button onclick="authorize()">Try Again</button>
+            document.body.innerHTML = `
+                <div class="container">
+                    <h2 class="error">❌ No Authorization Data</h2>
+                    <p>No access token received from Zoho.</p>
+                    <button onclick="authorize()">Start Authorization</button>
                 </div>
             `;
         }
-    } catch (error) {
-        console.error('Token exchange error:', error);
-        loadingDiv.style.display = 'none';
-        statusDiv.innerHTML = `
-            <div class="status error">
-                <h3>❌ Request Failed</h3>
-                <p>Error: ${error.message}</p>
-                <button onclick="authorize()">Try Again</button>
-            </div>
-        `;
-    }
-}
-
 
         function authorize() {
-    const scopes = [
-        'ZohoCliq.Channels.READ,ZohoCliq.Channels.CREATE,ZohoCliq.Channels.UPDATE,ZohoCliq.Channels.DELETE
-    ].join(',');
-    
-    const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${encodeURIComponent(scopes)}&client_id=${CONFIG.CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
-    
-    window.location.href = authUrl;
-}
+            const authUrl = `https://accounts.zoho.com/oauth/v2/auth?` +
+                `scope=ZohoCliq.StorageData.ALL&` +
+                `client_id=${CONFIG.CLIENT_ID}&` +
+                `response_type=token&` +  // ← Changed from 'code' to 'token'
+                `redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+            
+            window.location.href = authUrl;
+        }
+
+        window.authorize = authorize;
     </script>
 </body>
 </html>
